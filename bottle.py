@@ -1727,12 +1727,12 @@ class JSONPlugin(object):
 
             if isinstance(rv, dict):
                 #Attempt to serialize, raises exception on failure
-                json_response = dumps(rv)
+                json_response = dumps(rv, indent=2)
                 #Set content type only if serialization succesful
                 response.content_type = 'application/json'
                 return json_response
             elif isinstance(rv, HTTPResponse) and isinstance(rv.body, dict):
-                rv.body = dumps(rv.body)
+                rv.body = dumps(rv.body, indent=2)
                 rv.content_type = 'application/json'
             return rv
 
