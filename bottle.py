@@ -1477,6 +1477,11 @@ class BaseResponse(object):
         ''' The HTTP status code as an integer (e.g. 404).'''
         return self._status_code
 
+    @property
+    def status_type(self):
+        ''' The HTTP status names as lowercase / underscored (e.g. ```not_found```).'''
+        return self._status_type
+
     def _set_status(self, status):
         if isinstance(status, int):
             code, status = status, _HTTP_STATUS_LINES.get(status)
@@ -1487,6 +1492,7 @@ class BaseResponse(object):
             raise ValueError('String status line without a reason phrase.')
         if not 100 <= code <= 999: raise ValueError('Status code out of range.')
         self._status_code = code
+        self._status_type = _HTTP_TYPES.get(code)
         self._status_line = str(status or ('%d Unknown' % code))
 
     def _get_status(self):
@@ -1661,6 +1667,7 @@ class LocalResponse(BaseResponse):
     bind = BaseResponse.__init__
     _status_line = _local_property()
     _status_code = _local_property()
+    _status_type = _local_property()
     _cookies     = _local_property()
     _headers     = _local_property()
     body         = _local_property()
@@ -1676,6 +1683,7 @@ class HTTPResponse(Response, BottleException):
 
     def apply(self, response):
         response._status_code = self._status_code
+        response._status_type = self._status_type
         response._status_line = self._status_line
         response._headers = self._headers
         response._cookies = self._cookies
@@ -3476,6 +3484,7 @@ HTTP_CODES[429] = "Too Many Requests"
 HTTP_CODES[431] = "Request Header Fields Too Large"
 HTTP_CODES[511] = "Network Authentication Required"
 _HTTP_STATUS_LINES = dict((k, '%d %s'%(k,v)) for (k,v) in HTTP_CODES.items())
+_HTTP_TYPES = dict((getattr(httplib, s), s.lower()) for s in dir(httplib) if (100 <= getattr(httplib, s) <= 999))
 
 #: The default template used for error pages. Override with @error()
 ERROR_PAGE_TEMPLATE = """
