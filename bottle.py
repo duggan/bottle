@@ -1163,7 +1163,7 @@ class BaseRequest(object):
                 maxread -= len(part)
             if read(2) != rn:
                 raise err
-            
+
     @DictProperty('environ', 'bottle.request.body', read_only=True)
     def _body(self):
         body_iter = self._iter_chunked if self.chunked else self._iter_body
@@ -1498,6 +1498,11 @@ class BaseResponse(object):
         """ The HTTP status code as an integer (e.g. 404)."""
         return self._status_code
 
+    @property
+    def status_type(self):
+        ''' The HTTP status names as lowercase / underscored (e.g. ```not_found```).'''
+        return self._status_type
+
     def _set_status(self, status):
         if isinstance(status, int):
             code, status = status, _HTTP_STATUS_LINES.get(status)
@@ -1508,6 +1513,7 @@ class BaseResponse(object):
             raise ValueError('String status line without a reason phrase.')
         if not 100 <= code <= 999: raise ValueError('Status code out of range.')
         self._status_code = code
+        self._status_type = _HTTP_TYPES.get(code)
         self._status_line = str(status or ('%d Unknown' % code))
 
     def _get_status(self):
@@ -1682,6 +1688,7 @@ class LocalResponse(BaseResponse):
     bind = BaseResponse.__init__
     _status_line = _local_property()
     _status_code = _local_property()
+    _status_type = _local_property()
     _cookies     = _local_property()
     _headers     = _local_property()
     body         = _local_property()
@@ -1697,6 +1704,7 @@ class HTTPResponse(Response, BottleException):
 
     def apply(self, other):
         other._status_code = self._status_code
+        other._status_type = self._status_type
         other._status_line = self._status_line
         other._headers = self._headers
         other._cookies = self._cookies
@@ -1740,12 +1748,12 @@ class JSONPlugin(object):
 
             if isinstance(rv, dict):
                 #Attempt to serialize, raises exception on failure
-                json_response = dumps(rv)
-                #Set content type only if serialization successful
+                json_response = dumps(rv, indent=2)
+                #Set content type only if serialization succesful
                 response.content_type = 'application/json'
                 return json_response
             elif isinstance(rv, HTTPResponse) and isinstance(rv.body, dict):
-                rv.body = dumps(rv.body)
+                rv.body = dumps(rv.body, indent=2)
                 rv.content_type = 'application/json'
             return rv
 
@@ -2671,20 +2679,20 @@ class CherryPyServer(ServerAdapter):
         from cherrypy import wsgiserver
         self.options['bind_addr'] = (self.host, self.port)
         self.options['wsgi_app'] = handler
-        
+
         certfile = self.options.get('certfile')
         if certfile:
             del self.options['certfile']
         keyfile = self.options.get('keyfile')
         if keyfile:
             del self.options['keyfile']
-        
+
         server = wsgiserver.CherryPyWSGIServer(**self.options)
         if certfile:
             server.ssl_certificate = certfile
         if keyfile:
             server.ssl_private_key = keyfile
-        
+
         try:
             server.start()
         finally:
@@ -3534,6 +3542,7 @@ HTTP_CODES[429] = "Too Many Requests"
 HTTP_CODES[431] = "Request Header Fields Too Large"
 HTTP_CODES[511] = "Network Authentication Required"
 _HTTP_STATUS_LINES = dict((k, '%d %s'%(k,v)) for (k,v) in HTTP_CODES.items())
+_HTTP_TYPES = dict((getattr(httplib, s), s.lower()) for s in dir(httplib) if (100 <= getattr(httplib, s) <= 999))
 
 #: The default template used for error pages. Override with @error()
 ERROR_PAGE_TEMPLATE = """
